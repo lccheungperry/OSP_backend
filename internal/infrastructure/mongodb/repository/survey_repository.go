@@ -2,7 +2,10 @@ package repository
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
+	"time"
 
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/survey/model"
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/survey/repository"
@@ -22,7 +25,25 @@ func NewMongoSurveyRepository(db *mongo.Database) repository.SurveyRepository {
 	}
 }
 
+func generateToken() (string, error) {
+	bytes := make([]byte, 3)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes)[:5], nil
+}
+
 func (r *MongoSurveyRepository) Create(ctx context.Context, survey *model.Survey) error {
+	now := time.Now()
+	survey.CreatedAt = now
+	survey.UpdatedAt = now
+
+	token, err := generateToken()
+	if err != nil {
+		return err
+	}
+	survey.Token = token
+
 	result, err := r.collection.InsertOne(ctx, survey)
 	if err != nil {
 		return err

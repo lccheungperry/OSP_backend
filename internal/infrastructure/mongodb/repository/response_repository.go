@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/response/model"
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/response/repository"
@@ -23,6 +24,8 @@ func NewMongoResponseRepository(db *mongo.Database) repository.ResponseRepositor
 }
 
 func (r *MongoResponseRepository) Create(ctx context.Context, response *model.Response) error {
+	response.CreatedAt = time.Now()
+
 	result, err := r.collection.InsertOne(ctx, response)
 	if err != nil {
 		return err
