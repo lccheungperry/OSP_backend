@@ -289,7 +289,7 @@ func TestSubmitResponse(t *testing.T) {
 			}
 			svc := service.NewResponseService(responseRepo, surveyRepo, questionRepo)
 
-			err := svc.HandleCommand(context.Background(), tt.cmd)
+			_, err := svc.HandleCommand(context.Background(), tt.cmd)
 			if (err != nil && tt.expectedError == nil) || (err == nil && tt.expectedError != nil) {
 				t.Errorf("HandleCommand() error = %v, expectedError %v", err, tt.expectedError)
 			}
@@ -356,8 +356,8 @@ func TestGetResponses(t *testing.T) {
 			}
 			if err == nil {
 				response := result.(struct {
-					Responses []*model.Response
-					Total     int64
+					Responses []*model.Response `json:"responses"`
+					Total     int64             `json:"total"`
 				})
 				if len(response.Responses) != 1 {
 					t.Errorf("Expected 1 response, got %d", len(response.Responses))
@@ -405,7 +405,7 @@ func TestDeleteResponse(t *testing.T) {
 			questionRepo := &MockQuestionRepository{}
 			svc := service.NewResponseService(responseRepo, surveyRepo, questionRepo)
 
-			err := svc.HandleCommand(context.Background(), tt.cmd)
+			_, err := svc.HandleCommand(context.Background(), tt.cmd)
 			if (err != nil && tt.expectedError == nil) || (err == nil && tt.expectedError != nil) {
 				t.Errorf("DeleteResponse() error = %v, expectedError %v", err, tt.expectedError)
 			}

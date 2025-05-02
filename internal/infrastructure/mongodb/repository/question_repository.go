@@ -56,9 +56,20 @@ func convertBSONToLikertSpecs(specs bson.M) model.LikertSpecification {
 		likertOptions := make([]model.LikertOption, len(options))
 		for i, opt := range options {
 			if optMap, ok := opt.(bson.M); ok {
+				var scale int
+				switch v := optMap["scale"].(type) {
+				case float64:
+					scale = int(v)
+				case int32:
+					scale = int(v)
+				case int:
+					scale = v
+				default:
+					scale = 0
+				}
 				likertOptions[i] = model.LikertOption{
 					Label: optMap["label"].(string),
-					Scale: int(optMap["scale"].(int32)),
+					Scale: scale,
 				}
 			}
 		}
