@@ -2,8 +2,13 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/question/model"
+)
+
+var (
+	ErrQuestionNotFound = errors.New("question not found")
 )
 
 type QuestionRepository interface {
