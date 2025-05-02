@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/bus/query"
+	platform_error "github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/error"
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/question/model"
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/question/repository"
 )
@@ -22,10 +23,15 @@ type GetQuestionHandler struct {
 func (h *GetQuestionHandler) HandleQuery(ctx context.Context, q query.Query) (interface{}, error) {
 	getQuery, ok := q.(*GetQuestionQuery)
 	if !ok {
-		return nil, fmt.Errorf("invalid query type: %T", q)
+		return nil, platform_error.NewInvalidQueryTypeError(q)
 	}
 
-	return h.Repository.GetByID(ctx, getQuery.ID)
+	question, err := h.Repository.GetByID(ctx, getQuery.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return question, nil
 }
 
 type ListQuestionsHandler struct {
@@ -35,7 +41,7 @@ type ListQuestionsHandler struct {
 func (h *ListQuestionsHandler) HandleQuery(ctx context.Context, q query.Query) (interface{}, error) {
 	listQuery, ok := q.(*ListQuestionsQuery)
 	if !ok {
-		return nil, fmt.Errorf("invalid query type: %T", q)
+		return nil, platform_error.NewInvalidQueryTypeError(q)
 	}
 
 	filter := &model.QuestionFilter{
@@ -44,5 +50,10 @@ func (h *ListQuestionsHandler) HandleQuery(ctx context.Context, q query.Query) (
 		Offset: listQuery.Filter.Offset,
 	}
 
-	return h.Repository.List(ctx, filter)
+	questions, err := h.Repository.List(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	return questions, nil
 }

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/bus/command"
+	platform_error "github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/error"
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/survey/model"
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/survey/repository"
 )
@@ -16,7 +17,7 @@ type CreateSurveyHandler struct {
 func (h *CreateSurveyHandler) HandleCommand(ctx context.Context, cmd command.Command) (interface{}, error) {
 	createCmd, ok := cmd.(*CreateSurveyCommand)
 	if !ok {
-		return nil, NewInvalidCommandTypeError(cmd)
+		return nil, platform_error.NewInvalidCommandTypeError(cmd)
 	}
 
 	survey := &model.Survey{
@@ -24,7 +25,7 @@ func (h *CreateSurveyHandler) HandleCommand(ctx context.Context, cmd command.Com
 	}
 
 	if err := h.Repository.Create(ctx, survey); err != nil {
-		return nil, repository.NewCreateError(err)
+		return nil, platform_error.NewCreateError(err)
 	}
 
 	return survey, nil
@@ -38,7 +39,7 @@ type UpdateSurveyHandler struct {
 func (h *UpdateSurveyHandler) HandleCommand(ctx context.Context, cmd command.Command) (interface{}, error) {
 	updateCmd, ok := cmd.(*UpdateSurveyCommand)
 	if !ok {
-		return nil, NewInvalidCommandTypeError(cmd)
+		return nil, platform_error.NewInvalidCommandTypeError(cmd)
 	}
 
 	existingSurvey, err := h.Repository.FindByID(ctx, updateCmd.ID)
@@ -57,12 +58,12 @@ func (h *UpdateSurveyHandler) HandleCommand(ctx context.Context, cmd command.Com
 			CreatedAt:  time.Now(),
 		}
 		if err := h.Repository.CreateQuestionAssignment(ctx, assignment); err != nil {
-			return nil, repository.NewAssignmentError(err)
+			return nil, platform_error.NewAssignmentError(err)
 		}
 	}
 
 	if err := h.Repository.Update(ctx, existingSurvey); err != nil {
-		return nil, repository.NewUpdateError(err)
+		return nil, platform_error.NewUpdateError(err)
 	}
 
 	return existingSurvey, nil
@@ -75,11 +76,11 @@ type DeleteSurveyHandler struct {
 func (h *DeleteSurveyHandler) HandleCommand(ctx context.Context, cmd command.Command) (interface{}, error) {
 	deleteCmd, ok := cmd.(*DeleteSurveyCommand)
 	if !ok {
-		return nil, NewInvalidCommandTypeError(cmd)
+		return nil, platform_error.NewInvalidCommandTypeError(cmd)
 	}
 
 	if err := h.Repository.Delete(ctx, deleteCmd.ID); err != nil {
-		return nil, repository.NewDeleteError(err)
+		return nil, platform_error.NewDeleteError(err)
 	}
 
 	return nil, nil

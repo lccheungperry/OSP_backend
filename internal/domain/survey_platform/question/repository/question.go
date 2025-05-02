@@ -2,12 +2,12 @@ package repository
 
 import (
 	"context"
-	"errors"
 
+	platform_error "github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/error"
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/question/model"
 )
 
-var ErrQuestionNotFound = errors.New("question not found")
+var ErrQuestionNotFound = platform_error.ErrQuestionNotFound
 
 type QuestionRepository interface {
 	Create(ctx context.Context, question *model.Question) error

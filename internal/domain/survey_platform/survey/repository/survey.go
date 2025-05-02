@@ -2,13 +2,13 @@ package repository
 
 import (
 	"context"
-	"errors"
 
+	platform_error "github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/error"
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/survey/model"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-var ErrSurveyNotFound = errors.New("survey not found")
+var ErrSurveyNotFound = platform_error.ErrSurveyNotFound
 
 type SurveyRepository interface {
 	Create(ctx context.Context, survey *model.Survey) error
