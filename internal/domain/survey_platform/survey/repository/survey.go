@@ -17,4 +17,6 @@ type SurveyRepository interface {
 	List(ctx context.Context, skip, limit int64) ([]*model.Survey, int64, error)
 	Update(ctx context.Context, survey *model.Survey) error
 	Delete(ctx context.Context, id primitive.ObjectID) error
+	GetQuestionAssignments(ctx context.Context, surveyID primitive.ObjectID) ([]*model.SurveyQuestionAssignment, error)
+	CreateQuestionAssignment(ctx context.Context, assignment *model.SurveyQuestionAssignment) error
 }

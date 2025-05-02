@@ -2,7 +2,6 @@ package command
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/bus/command"
@@ -17,7 +16,7 @@ type CreateSurveyHandler struct {
 func (h *CreateSurveyHandler) HandleCommand(ctx context.Context, cmd command.Command) (interface{}, error) {
 	createCmd, ok := cmd.(*CreateSurveyCommand)
 	if !ok {
-		return nil, fmt.Errorf("invalid command type: %T", cmd)
+		return nil, NewInvalidCommandTypeError(cmd)
 	}
 
 	survey := &model.Survey{
@@ -25,7 +24,7 @@ func (h *CreateSurveyHandler) HandleCommand(ctx context.Context, cmd command.Com
 	}
 
 	if err := h.Repository.Create(ctx, survey); err != nil {
-		return nil, err
+		return nil, repository.NewCreateError(err)
 	}
 
 	return survey, nil
@@ -39,27 +38,36 @@ type UpdateSurveyHandler struct {
 func (h *UpdateSurveyHandler) HandleCommand(ctx context.Context, cmd command.Command) (interface{}, error) {
 	updateCmd, ok := cmd.(*UpdateSurveyCommand)
 	if !ok {
-		return nil, fmt.Errorf("invalid command type: %T", cmd)
+		return nil, NewInvalidCommandTypeError(cmd)
 	}
 
-	// Get existing survey
 	existingSurvey, err := h.Repository.FindByID(ctx, updateCmd.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Update only the fields that need to be changed
 	existingSurvey.Title = updateCmd.Title
 	existingSurvey.UpdatedAt = time.Now()
 
+	for i, question := range updateCmd.Questions {
+		assignment := &model.SurveyQuestionAssignment{
+			SurveyID:   updateCmd.ID,
+			QuestionID: question.QuestionID,
+			Order:      i + 1,
+			CreatedAt:  time.Now(),
+		}
+		if err := h.Repository.CreateQuestionAssignment(ctx, assignment); err != nil {
+			return nil, repository.NewAssignmentError(err)
+		}
+	}
+
 	if err := h.Repository.Update(ctx, existingSurvey); err != nil {
-		return nil, err
+		return nil, repository.NewUpdateError(err)
 	}
 
 	return existingSurvey, nil
 }
 
-// DeleteSurveyHandler handles the DeleteSurveyCommand
 type DeleteSurveyHandler struct {
 	Repository repository.SurveyRepository
 }
@@ -67,11 +75,11 @@ type DeleteSurveyHandler struct {
 func (h *DeleteSurveyHandler) HandleCommand(ctx context.Context, cmd command.Command) (interface{}, error) {
 	deleteCmd, ok := cmd.(*DeleteSurveyCommand)
 	if !ok {
-		return nil, fmt.Errorf("invalid command type: %T", cmd)
+		return nil, NewInvalidCommandTypeError(cmd)
 	}
 
 	if err := h.Repository.Delete(ctx, deleteCmd.ID); err != nil {
-		return nil, err
+		return nil, repository.NewDeleteError(err)
 	}
 
 	return nil, nil

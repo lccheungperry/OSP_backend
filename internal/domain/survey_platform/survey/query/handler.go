@@ -2,7 +2,6 @@ package query
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/bus/query"
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/survey/model"
@@ -17,17 +16,22 @@ type GetSurveyHandler struct {
 }
 
 func (h *GetSurveyHandler) HandleQuery(ctx context.Context, q query.Query) (interface{}, error) {
-	getQuery, ok := q.(*GetSurveyQuery)
+	getCmd, ok := q.(*GetSurveyQuery)
 	if !ok {
-		return nil, fmt.Errorf("invalid query type: %T", q)
+		return nil, NewInvalidQueryTypeError(q)
 	}
 
-	id, err := primitive.ObjectIDFromHex(getQuery.ID)
+	id, err := primitive.ObjectIDFromHex(getCmd.ID)
 	if err != nil {
-		return nil, fmt.Errorf("invalid survey ID: %v", err)
+		return nil, NewInvalidIDError(getCmd.ID, err)
 	}
 
-	return h.Repository.FindByID(ctx, id)
+	survey, err := h.Repository.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return survey, nil
 }
 
 // GetSurveyByTokenHandler handles the GetSurveyByTokenQuery
@@ -36,12 +40,17 @@ type GetSurveyByTokenHandler struct {
 }
 
 func (h *GetSurveyByTokenHandler) HandleQuery(ctx context.Context, q query.Query) (interface{}, error) {
-	getQuery, ok := q.(*GetSurveyByTokenQuery)
+	getCmd, ok := q.(*GetSurveyByTokenQuery)
 	if !ok {
-		return nil, fmt.Errorf("invalid query type: %T", q)
+		return nil, NewInvalidQueryTypeError(q)
 	}
 
-	return h.Repository.FindByToken(ctx, getQuery.Token)
+	survey, err := h.Repository.FindByToken(ctx, getCmd.Token)
+	if err != nil {
+		return nil, err
+	}
+
+	return survey, nil
 }
 
 // ListSurveysHandler handles the ListSurveysQuery
@@ -50,13 +59,13 @@ type ListSurveysHandler struct {
 }
 
 func (h *ListSurveysHandler) HandleQuery(ctx context.Context, q query.Query) (interface{}, error) {
-	listQuery, ok := q.(*ListSurveysQuery)
+	listCmd, ok := q.(*ListSurveysQuery)
 	if !ok {
-		return nil, fmt.Errorf("invalid query type: %T", q)
+		return nil, NewInvalidQueryTypeError(q)
 	}
 
-	skip := int64(listQuery.Filter.Offset)
-	limit := int64(listQuery.Filter.Limit)
+	skip := int64(listCmd.Filter.Offset)
+	limit := int64(listCmd.Filter.Limit)
 	if limit == 0 {
 		limit = DEFAULT_LIMIT
 	}
