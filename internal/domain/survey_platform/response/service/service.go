@@ -53,13 +53,13 @@ func (s *ResponseService) HandleQuery(ctx context.Context, q bus_query.Query) (i
 func (s *ResponseService) handleSubmitResponse(ctx context.Context, cmd *resp_command.SubmitResponseCommand) error {
 	// Validate survey exists
 	if _, err := s.surveyRepo.FindByID(ctx, cmd.SurveyID); err != nil {
-		return platform_error.NewSurveyNotFoundError(err)
+		return platform_error.ErrSurveyNotFound
 	}
 
 	// Get question assignments for the survey
 	assignments, err := s.surveyRepo.GetQuestionAssignments(ctx, cmd.SurveyID)
 	if err != nil {
-		return platform_error.NewQuestionNotFoundError(err)
+		return platform_error.ErrQuestionNotFound
 	}
 
 	validQuestions := make(map[primitive.ObjectID]bool)
@@ -74,7 +74,7 @@ func (s *ResponseService) handleSubmitResponse(ctx context.Context, cmd *resp_co
 
 		question, err := s.questionRepo.GetByID(ctx, answer.QuestionID.Hex())
 		if err != nil {
-			return platform_error.NewQuestionNotFoundError(err)
+			return platform_error.ErrQuestionNotFound
 		}
 
 		switch question.Format {
@@ -141,7 +141,7 @@ func (s *ResponseService) handleSubmitResponse(ctx context.Context, cmd *resp_co
 func (s *ResponseService) handleGetResponses(ctx context.Context, q *resp_query.GetResponsesQuery) (interface{}, error) {
 	// Validate survey exists
 	if _, err := s.surveyRepo.FindByID(ctx, q.SurveyID); err != nil {
-		return nil, platform_error.NewSurveyNotFoundError(err)
+		return nil, platform_error.ErrSurveyNotFound
 	}
 
 	responses, total, err := s.responseRepo.FindBySurveyID(ctx, q.SurveyID, q.Skip, q.Limit)
