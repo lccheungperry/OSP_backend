@@ -7,9 +7,7 @@ import (
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/question/model"
 )
 
-var (
-	ErrQuestionNotFound = errors.New("question not found")
-)
+var ErrQuestionNotFound = errors.New("question not found")
 
 type QuestionRepository interface {
 	Create(ctx context.Context, question *model.Question) error
