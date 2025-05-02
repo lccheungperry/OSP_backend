@@ -111,10 +111,23 @@ func NewInvalidOptionValueError(questionID primitive.ObjectID) error {
 	}
 }
 
-func NewInvalidScaleValueError(questionID primitive.ObjectID) error {
+func NewInvalidScaleValueError(questionID primitive.ObjectID, scale float64, maxScale interface{}) error {
+	var maxScaleStr string
+	switch v := maxScale.(type) {
+	case float64:
+		maxScaleStr = fmt.Sprintf("%v", v)
+	case int:
+		maxScaleStr = fmt.Sprintf("%d", v)
+	case int32:
+		maxScaleStr = fmt.Sprintf("%d", v)
+	case int64:
+		maxScaleStr = fmt.Sprintf("%d", v)
+	default:
+		maxScaleStr = fmt.Sprintf("%v", v)
+	}
 	return &ServiceError{
 		Code:    "INVALID_SCALE_VALUE",
-		Message: fmt.Sprintf("invalid scale value for question %s", questionID.Hex()),
+		Message: fmt.Sprintf("invalid scale value: %v (max: %s) for question %s", scale, maxScaleStr, questionID.Hex()),
 	}
 }
 

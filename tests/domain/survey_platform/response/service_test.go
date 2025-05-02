@@ -202,7 +202,7 @@ func TestSubmitResponse(t *testing.T) {
 				Answers: []model.Answer{
 					{
 						QuestionID: primitive.NewObjectID(),
-						Value:      "Test Answer",
+						Value:      float64(4),
 					},
 				},
 			},
@@ -221,7 +221,7 @@ func TestSubmitResponse(t *testing.T) {
 				Answers: []model.Answer{
 					{
 						QuestionID: primitive.NewObjectID(),
-						Value:      "Test Answer",
+						Value:      float64(4),
 					},
 				},
 			},
@@ -258,8 +258,32 @@ func TestSubmitResponse(t *testing.T) {
 			questionRepo := &MockQuestionRepository{
 				GetByIDFunc: func(ctx context.Context, id string) (*question_model.Question, error) {
 					return &question_model.Question{
-						ID:     primitive.NewObjectID(),
-						Format: "text",
+						ID:     tt.cmd.Answers[0].QuestionID,
+						Format: "likert",
+						Specifications: primitive.D{
+							{Key: "options", Value: primitive.A{
+								primitive.D{
+									{Key: "label", Value: "Very Dissatisfied"},
+									{Key: "scale", Value: float64(1)},
+								},
+								primitive.D{
+									{Key: "label", Value: "Dissatisfied"},
+									{Key: "scale", Value: float64(2)},
+								},
+								primitive.D{
+									{Key: "label", Value: "Neutral"},
+									{Key: "scale", Value: float64(3)},
+								},
+								primitive.D{
+									{Key: "label", Value: "Satisfied"},
+									{Key: "scale", Value: float64(4)},
+								},
+								primitive.D{
+									{Key: "label", Value: "Very Satisfied"},
+									{Key: "scale", Value: float64(5)},
+								},
+							}},
+						},
 					}, nil
 				},
 			}

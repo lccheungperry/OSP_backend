@@ -50,13 +50,90 @@ func (s *ResponseService) HandleQuery(ctx context.Context, q bus_query.Query) (i
 	}
 }
 
+func validateMultipleChoiceAnswer(answerValue interface{}, options []interface{}, questionID primitive.ObjectID) error {
+	answerStr, ok := answerValue.(string)
+	if !ok {
+		return platform_error.NewInvalidAnswerTypeError(questionID, "multiple_choice")
+	}
+
+	for _, opt := range options {
+		optMap, ok := opt.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if id, ok := optMap["id"].(string); ok && id == answerStr {
+			return nil
+		}
+	}
+	return platform_error.NewInvalidOptionValueError(questionID)
+}
+
+func validateLikertAnswer(answerValue interface{}, options []interface{}, questionID primitive.ObjectID) error {
+	var scale float64
+	switch v := answerValue.(type) {
+	case float64:
+		scale = v
+	case int32:
+		scale = float64(v)
+	case int:
+		scale = float64(v)
+	default:
+		return platform_error.NewInvalidAnswerTypeError(questionID, "likert")
+	}
+
+	maxScale := 0.0
+	for _, opt := range options {
+		if optDoc, ok := opt.(primitive.D); ok {
+			var scaleValue float64
+			for _, elem := range optDoc {
+				if elem.Key == "scale" {
+					if value, ok := elem.Value.(float64); ok {
+						scaleValue = value
+					}
+				}
+			}
+			if scaleValue > maxScale {
+				maxScale = scaleValue
+			}
+		}
+	}
+
+	if maxScale == 0 {
+		return platform_error.NewInvalidScaleValueError(questionID, scale, maxScale)
+	}
+
+	if scale < 1 || scale > maxScale {
+		return platform_error.NewInvalidScaleValueError(questionID, scale, maxScale)
+	}
+
+	return nil
+}
+
+func getOptionsFromSpecs(specs interface{}, questionID primitive.ObjectID) ([]interface{}, error) {
+	switch v := specs.(type) {
+	case primitive.D:
+		for _, elem := range v {
+			if elem.Key == "options" {
+				if options, ok := elem.Value.(primitive.A); ok {
+					return []interface{}(options), nil
+				}
+			}
+		}
+	case []interface{}:
+		return v, nil
+	case map[string]interface{}:
+		if options, ok := v["options"].([]interface{}); ok {
+			return options, nil
+		}
+	}
+	return nil, platform_error.NewInvalidOptionsError(questionID)
+}
+
 func (s *ResponseService) handleSubmitResponse(ctx context.Context, cmd *resp_command.SubmitResponseCommand) error {
-	// Validate survey exists
 	if _, err := s.surveyRepo.FindByID(ctx, cmd.SurveyID); err != nil {
 		return platform_error.ErrSurveyNotFound
 	}
 
-	// Get question assignments for the survey
 	assignments, err := s.surveyRepo.GetQuestionAssignments(ctx, cmd.SurveyID)
 	if err != nil {
 		return platform_error.ErrQuestionNotFound
@@ -77,55 +154,25 @@ func (s *ResponseService) handleSubmitResponse(ctx context.Context, cmd *resp_co
 			return platform_error.ErrQuestionNotFound
 		}
 
+		options, err := getOptionsFromSpecs(question.Specifications, answer.QuestionID)
+		if err != nil {
+			return err
+		}
+
 		switch question.Format {
 		case "multiple_choice":
-			specs, ok := question.Specifications.(map[string]interface{})
-			if !ok {
-				return platform_error.NewInvalidSpecificationsError(answer.QuestionID)
+			if err := validateMultipleChoiceAnswer(answer.Value, options, answer.QuestionID); err != nil {
+				return err
 			}
-			options, ok := specs["options"].([]interface{})
-			if !ok {
-				return platform_error.NewInvalidOptionsError(answer.QuestionID)
-			}
-			found := false
-			answerValue, ok := answer.Value.(string)
-			if !ok {
-				return platform_error.NewInvalidAnswerTypeError(answer.QuestionID, "multiple_choice")
-			}
-			for _, opt := range options {
-				option, ok := opt.(map[string]interface{})
-				if !ok {
-					continue
-				}
-				if option["id"] == answerValue {
-					found = true
-					break
-				}
-			}
-			if !found {
-				return platform_error.NewInvalidOptionValueError(answer.QuestionID)
-			}
-
 		case "likert":
-			specs, ok := question.Specifications.(map[string]interface{})
-			if !ok {
-				return platform_error.NewInvalidSpecificationsError(answer.QuestionID)
+			if err := validateLikertAnswer(answer.Value, options, answer.QuestionID); err != nil {
+				return err
 			}
-			options, ok := specs["options"].([]interface{})
-			if !ok {
-				return platform_error.NewInvalidOptionsError(answer.QuestionID)
-			}
-			scale, ok := answer.Value.(float64)
-			if !ok {
-				return platform_error.NewInvalidAnswerTypeError(answer.QuestionID, "likert")
-			}
-			if scale < 1 || scale > float64(len(options)) {
-				return platform_error.NewInvalidScaleValueError(answer.QuestionID)
-			}
+		default:
+			return fmt.Errorf("invalid question format: %s", question.Format)
 		}
 	}
 
-	// Create response
 	response := &model.Response{
 		SurveyID: cmd.SurveyID,
 		Answers:  cmd.Answers,
@@ -139,7 +186,6 @@ func (s *ResponseService) handleSubmitResponse(ctx context.Context, cmd *resp_co
 }
 
 func (s *ResponseService) handleGetResponses(ctx context.Context, q *resp_query.GetResponsesQuery) (interface{}, error) {
-	// Validate survey exists
 	if _, err := s.surveyRepo.FindByID(ctx, q.SurveyID); err != nil {
 		return nil, platform_error.ErrSurveyNotFound
 	}
