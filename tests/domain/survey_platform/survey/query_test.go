@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/survey/model"
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/survey/query"
@@ -128,8 +129,11 @@ func TestListSurveysHandler(t *testing.T) {
 			name: "successful survey listing",
 			query: &query.ListSurveysQuery{
 				Filter: &model.SurveyFilter{
-					Limit:  10,
-					Offset: 0,
+					Title:     "Test Survey",
+					StartDate: time.Now().AddDate(0, -1, 0),
+					EndDate:   time.Now(),
+					Limit:     10,
+					Offset:    0,
 				},
 			},
 			listFunc: func(ctx context.Context, skip, limit int64) ([]*model.Survey, int64, error) {
@@ -150,8 +154,11 @@ func TestListSurveysHandler(t *testing.T) {
 			name: "repository error",
 			query: &query.ListSurveysQuery{
 				Filter: &model.SurveyFilter{
-					Limit:  10,
-					Offset: 0,
+					Title:     "Test Survey",
+					StartDate: time.Now().AddDate(0, -1, 0),
+					EndDate:   time.Now(),
+					Limit:     10,
+					Offset:    0,
 				},
 			},
 			listFunc: func(ctx context.Context, skip, limit int64) ([]*model.Survey, int64, error) {
@@ -176,8 +183,8 @@ func TestListSurveysHandler(t *testing.T) {
 			}
 			if err == nil {
 				response := result.(struct {
-					Surveys []*model.Survey `json:"surveys"`
-					Total   int64           `json:"total"`
+					Surveys []*model.Survey
+					Total   int64
 				})
 				if len(response.Surveys) != 2 || response.Total != 2 {
 					t.Errorf("HandleQuery() got = %v items, total %v, want 2 items, total 2", len(response.Surveys), response.Total)

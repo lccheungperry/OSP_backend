@@ -12,4 +12,5 @@ type SurveyQuestionAssignment struct {
 	QuestionID primitive.ObjectID `bson:"question_id" json:"question_id" validate:"required"`
 	Order      int                `bson:"order" json:"order" validate:"required,min=1"`
 	CreatedAt  time.Time          `bson:"created_at" json:"created_at"`
+	UpdatedAt  time.Time          `bson:"updated_at" json:"updated_at"`
 }
