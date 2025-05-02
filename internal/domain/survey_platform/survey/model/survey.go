@@ -13,3 +13,11 @@ type Survey struct {
 	CreatedAt time.Time          `bson:"created_at" json:"created_at"`
 	UpdatedAt time.Time          `bson:"updated_at" json:"updated_at"`
 }
+
+type SurveyFilter struct {
+	Title     string    `json:"title"`
+	StartDate time.Time `json:"start_date"`
+	EndDate   time.Time `json:"end_date"`
+	Limit     int       `json:"limit"`
+	Offset    int       `json:"offset"`
+}
