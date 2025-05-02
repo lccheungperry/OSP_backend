@@ -3,6 +3,7 @@ package command
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/bus/command"
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/survey/model"
@@ -41,16 +42,21 @@ func (h *UpdateSurveyHandler) HandleCommand(ctx context.Context, cmd command.Com
 		return nil, fmt.Errorf("invalid command type: %T", cmd)
 	}
 
-	survey := &model.Survey{
-		ID:    updateCmd.ID,
-		Title: updateCmd.Title,
-	}
-
-	if err := h.Repository.Update(ctx, survey); err != nil {
+	// Get existing survey
+	existingSurvey, err := h.Repository.FindByID(ctx, updateCmd.ID)
+	if err != nil {
 		return nil, err
 	}
 
-	return survey, nil
+	// Update only the fields that need to be changed
+	existingSurvey.Title = updateCmd.Title
+	existingSurvey.UpdatedAt = time.Now()
+
+	if err := h.Repository.Update(ctx, existingSurvey); err != nil {
+		return nil, err
+	}
+
+	return existingSurvey, nil
 }
 
 // DeleteSurveyHandler handles the DeleteSurveyCommand
