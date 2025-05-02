@@ -8,6 +8,6 @@ import (
 )
 
 type ResponseServiceInterface interface {
-	HandleCommand(ctx context.Context, cmd command.Command) error
+	HandleCommand(ctx context.Context, cmd command.Command) (interface{}, error)
 	HandleQuery(ctx context.Context, q query.Query) (interface{}, error)
 }

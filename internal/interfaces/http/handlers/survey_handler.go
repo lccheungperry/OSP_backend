@@ -1,157 +1,213 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/survey/command"
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/survey/model"
+	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/survey/query"
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/survey/repository"
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/survey/service"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// SurveyHandler handles HTTP requests for survey operations
 type SurveyHandler struct {
-	service *service.SurveyService
+	service service.SurveyServiceInterface
 }
 
-// NewSurveyHandler creates a new survey handler
-func NewSurveyHandler(service *service.SurveyService) *SurveyHandler {
+func NewSurveyHandler(service service.SurveyServiceInterface) *SurveyHandler {
 	return &SurveyHandler{service: service}
 }
 
-// CreateSurvey handles the creation of a new survey
 func (h *SurveyHandler) CreateSurvey(c *gin.Context) {
-	var req model.CreateSurveyRequest
+	var req struct {
+		Title string `json:"title" binding:"required,min=3,max=100"`
+	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid request format",
-			"details": err.Error(),
-		})
+		SendErrorResponse(c, http.StatusBadRequest, "INVALID_REQUEST", err.Error())
 		return
 	}
 
-	survey, err := h.service.CreateSurvey(c.Request.Context(), &req)
+	if !ValidateSurveyRequest(c, req.Title, nil) {
+		return
+	}
+
+	cmd := &command.CreateSurveyCommand{
+		Title: req.Title,
+	}
+
+	result, err := h.service.HandleCommand(c.Request.Context(), cmd)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to create survey",
-			"details": err.Error(),
-		})
+		HandleServiceError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusCreated, survey)
+	survey, ok := result.(*model.Survey)
+	if !ok {
+		SendErrorResponse(c, http.StatusInternalServerError, "INVALID_RESPONSE", "Invalid response type")
+		return
+	}
+
+	SendSuccessResponse(c, http.StatusCreated, survey)
 }
 
-// ListSurveys handles listing all surveys
 func (h *SurveyHandler) ListSurveys(c *gin.Context) {
-	// TODO: Implement pagination parameters
-	surveys, total, err := h.service.ListSurveys(c.Request.Context(), 1, 10)
+	q := &query.ListSurveysQuery{
+		Filter: &model.SurveyFilter{
+			Limit:  10,
+			Offset: 0,
+		},
+	}
+
+	result, err := h.service.HandleQuery(c.Request.Context(), q)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to list surveys",
-			"details": err.Error(),
-		})
+		HandleServiceError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"surveys": surveys,
-		"total":   total,
-	})
+	SendSuccessResponse(c, http.StatusOK, result)
 }
 
-// GetSurvey handles getting a survey by ID
 func (h *SurveyHandler) GetSurvey(c *gin.Context) {
-	id := c.Param("id")
-	survey, err := h.service.GetSurvey(c.Request.Context(), id)
-	if err != nil {
-		if err == repository.ErrSurveyNotFound {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error":   "Survey not found",
-				"details": "Survey with ID '" + id + "' not found",
-			})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to get survey",
-			"details": err.Error(),
-		})
+	id, ok := ValidateObjectID(c, c.Param("id"))
+	if !ok {
 		return
 	}
 
-	c.JSON(http.StatusOK, survey)
+	q := &query.GetSurveyQuery{
+		ID: id,
+	}
+
+	result, err := h.service.HandleQuery(c.Request.Context(), q)
+	if err != nil {
+		if err == repository.ErrSurveyNotFound {
+			SendErrorResponse(c, http.StatusNotFound, "SURVEY_NOT_FOUND",
+				"Survey with ID '"+id+"' not found")
+			return
+		}
+		HandleServiceError(c, err)
+		return
+	}
+
+	SendSuccessResponse(c, http.StatusOK, result)
 }
 
-// UpdateSurvey handles updating a survey
 func (h *SurveyHandler) UpdateSurvey(c *gin.Context) {
-	id := c.Param("id")
-	var req model.UpdateSurveyRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid request format",
-			"details": err.Error(),
-		})
+	id, ok := ValidateObjectID(c, c.Param("id"))
+	if !ok {
 		return
 	}
 
-	survey, err := h.service.UpdateSurvey(c.Request.Context(), id, &req)
+	var req struct {
+		Title     string `json:"title" binding:"required,min=3,max=100"`
+		Questions []struct {
+			QuestionID string `json:"questionId" binding:"required"`
+			Order      int    `json:"order" binding:"required,min=1"`
+		} `json:"questions"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		SendErrorResponse(c, http.StatusBadRequest, "INVALID_REQUEST", err.Error())
+		return
+	}
+
+	if !ValidateSurveyRequest(c, req.Title, req.Questions) {
+		return
+	}
+
+	objID, _ := primitive.ObjectIDFromHex(id)
+	cmd := &command.UpdateSurveyCommand{
+		ID:    objID,
+		Title: req.Title,
+	}
+
+	cmd.Questions = make([]struct {
+		QuestionID primitive.ObjectID `json:"questionId" validate:"required"`
+		Order      int                `json:"order" validate:"required,min=1"`
+	}, len(req.Questions))
+	for i, q := range req.Questions {
+		questionID, err := primitive.ObjectIDFromHex(q.QuestionID)
+		if err != nil {
+			SendErrorResponse(c, http.StatusBadRequest, "INVALID_QUESTION_ID",
+				fmt.Sprintf("Question ID '%s' is not a valid ObjectID: %v", q.QuestionID, err))
+			return
+		}
+		cmd.Questions[i] = struct {
+			QuestionID primitive.ObjectID `json:"questionId" validate:"required"`
+			Order      int                `json:"order" validate:"required,min=1"`
+		}{
+			QuestionID: questionID,
+			Order:      q.Order,
+		}
+	}
+
+	result, err := h.service.HandleCommand(c.Request.Context(), cmd)
 	if err != nil {
 		if err == repository.ErrSurveyNotFound {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error":   "Survey not found",
-				"details": "Survey with ID '" + id + "' not found",
-			})
+			SendErrorResponse(c, http.StatusNotFound, "SURVEY_NOT_FOUND",
+				"Survey with ID '"+id+"' not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to update survey",
-			"details": err.Error(),
-		})
+		HandleServiceError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, survey)
+	survey, ok := result.(*model.Survey)
+	if !ok {
+		SendErrorResponse(c, http.StatusInternalServerError, "INVALID_RESPONSE", "Invalid response type")
+		return
+	}
+
+	SendSuccessResponse(c, http.StatusOK, survey)
 }
 
-// DeleteSurvey handles deleting a survey
 func (h *SurveyHandler) DeleteSurvey(c *gin.Context) {
-	id := c.Param("id")
-	if err := h.service.DeleteSurvey(c.Request.Context(), id); err != nil {
+	id, ok := ValidateObjectID(c, c.Param("id"))
+	if !ok {
+		return
+	}
+
+	objID, _ := primitive.ObjectIDFromHex(id)
+	cmd := &command.DeleteSurveyCommand{
+		ID: objID,
+	}
+
+	_, err := h.service.HandleCommand(c.Request.Context(), cmd)
+	if err != nil {
 		if err == repository.ErrSurveyNotFound {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error":   "Survey not found",
-				"details": "Survey with ID '" + id + "' not found",
-			})
+			SendErrorResponse(c, http.StatusNotFound, "SURVEY_NOT_FOUND",
+				"Survey with ID '"+id+"' not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to delete survey",
-			"details": err.Error(),
-		})
+		HandleServiceError(c, err)
 		return
 	}
 
 	c.Status(http.StatusNoContent)
 }
 
-// GetSurveyByToken handles getting a survey by token
 func (h *SurveyHandler) GetSurveyByToken(c *gin.Context) {
 	token := c.Param("token")
-	survey, err := h.service.GetSurveyByToken(c.Request.Context(), token)
-	if err != nil {
-		if err == repository.ErrSurveyNotFound {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error":   "Survey not found",
-				"details": "Survey with token '" + token + "' not found",
-			})
-			return
-		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to get survey",
-			"details": err.Error(),
-		})
+	if len(token) != 5 {
+		SendErrorResponse(c, http.StatusBadRequest, "INVALID_TOKEN", "Token must be exactly 5 characters long")
 		return
 	}
 
-	c.JSON(http.StatusOK, survey)
+	q := &query.GetSurveyByTokenQuery{
+		Token: token,
+	}
+
+	result, err := h.service.HandleQuery(c.Request.Context(), q)
+	if err != nil {
+		if err == repository.ErrSurveyNotFound {
+			SendErrorResponse(c, http.StatusNotFound, "SURVEY_NOT_FOUND",
+				"Survey with token '"+token+"' not found")
+			return
+		}
+		HandleServiceError(c, err)
+		return
+	}
+
+	SendSuccessResponse(c, http.StatusOK, result)
 }
