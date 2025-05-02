@@ -1,6 +1,8 @@
 package command
 
-import "go.mongodb.org/mongo-driver/bson/primitive"
+import (
+	"go.mongodb.org/mongo-driver/bson/primitive"
+)
 
 type CreateSurveyCommand struct {
 	Title string `json:"title" validate:"required,min=3,max=100"`
@@ -11,8 +13,12 @@ func (c *CreateSurveyCommand) CommandName() string {
 }
 
 type UpdateSurveyCommand struct {
-	ID    primitive.ObjectID `json:"id" validate:"required"`
-	Title string             `json:"title" validate:"required,min=3,max=100"`
+	ID        primitive.ObjectID `json:"id" validate:"required"`
+	Title     string             `json:"title" validate:"required,min=3,max=100"`
+	Questions []struct {
+		QuestionID primitive.ObjectID `json:"questionId" validate:"required"`
+		Order      int                `json:"order" validate:"required,min=1"`
+	} `json:"questions"`
 }
 
 func (c *UpdateSurveyCommand) CommandName() string {

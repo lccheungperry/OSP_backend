@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/survey/model"
@@ -16,12 +17,14 @@ import (
 )
 
 type MongoSurveyRepository struct {
-	collection *mongo.Collection
+	collection            *mongo.Collection
+	assignmentsCollection *mongo.Collection
 }
 
 func NewMongoSurveyRepository(db *mongo.Database) repository.SurveyRepository {
 	return &MongoSurveyRepository{
-		collection: db.Collection("surveys"),
+		collection:            db.Collection("surveys"),
+		assignmentsCollection: db.Collection("survey_question_assignments"),
 	}
 }
 
@@ -125,6 +128,44 @@ func (r *MongoSurveyRepository) Delete(ctx context.Context, id primitive.ObjectI
 
 	if result.DeletedCount == 0 {
 		return repository.ErrSurveyNotFound
+	}
+
+	return nil
+}
+
+func (r *MongoSurveyRepository) GetQuestionAssignments(ctx context.Context, surveyID primitive.ObjectID) ([]*model.SurveyQuestionAssignment, error) {
+	cursor, err := r.assignmentsCollection.Find(ctx, bson.M{"survey_id": surveyID})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var assignments []*model.SurveyQuestionAssignment
+	if err := cursor.All(ctx, &assignments); err != nil {
+		return nil, err
+	}
+
+	return assignments, nil
+}
+
+func (r *MongoSurveyRepository) CreateQuestionAssignment(ctx context.Context, assignment *model.SurveyQuestionAssignment) error {
+	// Delete existing assignments for this survey and question
+	_, err := r.assignmentsCollection.DeleteMany(ctx, bson.M{
+		"survey_id":   assignment.SurveyID,
+		"question_id": assignment.QuestionID,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to delete existing assignments: %v", err)
+	}
+
+	// Create new assignment
+	result, err := r.assignmentsCollection.InsertOne(ctx, assignment)
+	if err != nil {
+		return fmt.Errorf("failed to create assignment: %v", err)
+	}
+
+	if oid, ok := result.InsertedID.(primitive.ObjectID); ok {
+		assignment.ID = oid
 	}
 
 	return nil

@@ -2,9 +2,9 @@ package query
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/bus/query"
+	platform_error "github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/error"
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/survey/model"
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/survey/repository"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -19,15 +19,20 @@ type GetSurveyHandler struct {
 func (h *GetSurveyHandler) HandleQuery(ctx context.Context, q query.Query) (interface{}, error) {
 	getQuery, ok := q.(*GetSurveyQuery)
 	if !ok {
-		return nil, fmt.Errorf("invalid query type: %T", q)
+		return nil, platform_error.NewInvalidQueryTypeError(q)
 	}
 
 	id, err := primitive.ObjectIDFromHex(getQuery.ID)
 	if err != nil {
-		return nil, fmt.Errorf("invalid survey ID: %v", err)
+		return nil, platform_error.NewInvalidIDError(getQuery.ID, err)
 	}
 
-	return h.Repository.FindByID(ctx, id)
+	survey, err := h.Repository.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return survey, nil
 }
 
 // GetSurveyByTokenHandler handles the GetSurveyByTokenQuery
@@ -38,10 +43,15 @@ type GetSurveyByTokenHandler struct {
 func (h *GetSurveyByTokenHandler) HandleQuery(ctx context.Context, q query.Query) (interface{}, error) {
 	getQuery, ok := q.(*GetSurveyByTokenQuery)
 	if !ok {
-		return nil, fmt.Errorf("invalid query type: %T", q)
+		return nil, platform_error.NewInvalidQueryTypeError(q)
 	}
 
-	return h.Repository.FindByToken(ctx, getQuery.Token)
+	survey, err := h.Repository.FindByToken(ctx, getQuery.Token)
+	if err != nil {
+		return nil, err
+	}
+
+	return survey, nil
 }
 
 // ListSurveysHandler handles the ListSurveysQuery
@@ -52,13 +62,13 @@ type ListSurveysHandler struct {
 func (h *ListSurveysHandler) HandleQuery(ctx context.Context, q query.Query) (interface{}, error) {
 	listQuery, ok := q.(*ListSurveysQuery)
 	if !ok {
-		return nil, fmt.Errorf("invalid query type: %T", q)
+		return nil, platform_error.NewInvalidQueryTypeError(q)
 	}
 
-	skip := int64(listQuery.Filter.Offset)
-	limit := int64(listQuery.Filter.Limit)
-	if limit == 0 {
-		limit = DEFAULT_LIMIT
+	var skip, limit int64
+	if listQuery.Filter != nil {
+		skip = int64(listQuery.Filter.Offset)
+		limit = int64(listQuery.Filter.Limit)
 	}
 
 	surveys, total, err := h.Repository.List(ctx, skip, limit)
@@ -67,8 +77,8 @@ func (h *ListSurveysHandler) HandleQuery(ctx context.Context, q query.Query) (in
 	}
 
 	return struct {
-		Surveys []*model.Survey `json:"surveys"`
-		Total   int64           `json:"total"`
+		Surveys []*model.Survey
+		Total   int64
 	}{
 		Surveys: surveys,
 		Total:   total,

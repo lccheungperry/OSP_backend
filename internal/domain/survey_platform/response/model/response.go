@@ -17,3 +17,9 @@ type Response struct {
 	Answers   []Answer           `bson:"answers" json:"answers" validate:"required,min=1"`
 	CreatedAt time.Time          `bson:"created_at" json:"created_at"`
 }
+
+type ResponseFilter struct {
+	SurveyID primitive.ObjectID `json:"survey_id"`
+	Limit    int                `json:"limit"`
+	Offset   int                `json:"offset"`
+}

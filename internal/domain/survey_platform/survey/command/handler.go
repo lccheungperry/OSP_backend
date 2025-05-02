@@ -2,9 +2,10 @@ package command
 
 import (
 	"context"
-	"fmt"
+	"time"
 
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/bus/command"
+	platform_error "github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/error"
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/survey/model"
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/survey/repository"
 )
@@ -13,17 +14,21 @@ type CreateSurveyHandler struct {
 	Repository repository.SurveyRepository
 }
 
-func (h *CreateSurveyHandler) HandleCommand(ctx context.Context, cmd command.Command) error {
+func (h *CreateSurveyHandler) HandleCommand(ctx context.Context, cmd command.Command) (interface{}, error) {
 	createCmd, ok := cmd.(*CreateSurveyCommand)
 	if !ok {
-		return fmt.Errorf("invalid command type: %T", cmd)
+		return nil, platform_error.NewInvalidCommandTypeError(cmd)
 	}
 
 	survey := &model.Survey{
 		Title: createCmd.Title,
 	}
 
-	return h.Repository.Create(ctx, survey)
+	if err := h.Repository.Create(ctx, survey); err != nil {
+		return nil, platform_error.NewCreateError(err)
+	}
+
+	return survey, nil
 }
 
 // UpdateSurveyHandler handles the UpdateSurveyCommand
@@ -31,30 +36,52 @@ type UpdateSurveyHandler struct {
 	Repository repository.SurveyRepository
 }
 
-func (h *UpdateSurveyHandler) HandleCommand(ctx context.Context, cmd command.Command) error {
+func (h *UpdateSurveyHandler) HandleCommand(ctx context.Context, cmd command.Command) (interface{}, error) {
 	updateCmd, ok := cmd.(*UpdateSurveyCommand)
 	if !ok {
-		return fmt.Errorf("invalid command type: %T", cmd)
+		return nil, platform_error.NewInvalidCommandTypeError(cmd)
 	}
 
-	survey := &model.Survey{
-		ID:    updateCmd.ID,
-		Title: updateCmd.Title,
+	existingSurvey, err := h.Repository.FindByID(ctx, updateCmd.ID)
+	if err != nil {
+		return nil, err
 	}
 
-	return h.Repository.Update(ctx, survey)
+	existingSurvey.Title = updateCmd.Title
+	existingSurvey.UpdatedAt = time.Now()
+
+	for i, question := range updateCmd.Questions {
+		assignment := &model.SurveyQuestionAssignment{
+			SurveyID:   updateCmd.ID,
+			QuestionID: question.QuestionID,
+			Order:      i + 1,
+			CreatedAt:  time.Now(),
+		}
+		if err := h.Repository.CreateQuestionAssignment(ctx, assignment); err != nil {
+			return nil, platform_error.NewAssignmentError(err)
+		}
+	}
+
+	if err := h.Repository.Update(ctx, existingSurvey); err != nil {
+		return nil, platform_error.NewUpdateError(err)
+	}
+
+	return existingSurvey, nil
 }
 
-// DeleteSurveyHandler handles the DeleteSurveyCommand
 type DeleteSurveyHandler struct {
 	Repository repository.SurveyRepository
 }
 
-func (h *DeleteSurveyHandler) HandleCommand(ctx context.Context, cmd command.Command) error {
+func (h *DeleteSurveyHandler) HandleCommand(ctx context.Context, cmd command.Command) (interface{}, error) {
 	deleteCmd, ok := cmd.(*DeleteSurveyCommand)
 	if !ok {
-		return fmt.Errorf("invalid command type: %T", cmd)
+		return nil, platform_error.NewInvalidCommandTypeError(cmd)
 	}
 
-	return h.Repository.Delete(ctx, deleteCmd.ID)
+	if err := h.Repository.Delete(ctx, deleteCmd.ID); err != nil {
+		return nil, platform_error.NewDeleteError(err)
+	}
+
+	return nil, nil
 }

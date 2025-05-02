@@ -10,12 +10,14 @@ import (
 )
 
 type MockSurveyRepository struct {
-	CreateFunc      func(ctx context.Context, survey *model.Survey) error
-	UpdateFunc      func(ctx context.Context, survey *model.Survey) error
-	DeleteFunc      func(ctx context.Context, id primitive.ObjectID) error
-	FindByIDFunc    func(ctx context.Context, id primitive.ObjectID) (*model.Survey, error)
-	FindByTokenFunc func(ctx context.Context, token string) (*model.Survey, error)
-	ListFunc        func(ctx context.Context, skip, limit int64) ([]*model.Survey, int64, error)
+	CreateFunc                   func(ctx context.Context, survey *model.Survey) error
+	UpdateFunc                   func(ctx context.Context, survey *model.Survey) error
+	DeleteFunc                   func(ctx context.Context, id primitive.ObjectID) error
+	FindByIDFunc                 func(ctx context.Context, id primitive.ObjectID) (*model.Survey, error)
+	FindByTokenFunc              func(ctx context.Context, token string) (*model.Survey, error)
+	ListFunc                     func(ctx context.Context, skip, limit int64) ([]*model.Survey, int64, error)
+	CreateQuestionAssignmentFunc func(ctx context.Context, assignment *model.SurveyQuestionAssignment) error
+	GetQuestionAssignmentsFunc   func(ctx context.Context, surveyID primitive.ObjectID) ([]*model.SurveyQuestionAssignment, error)
 }
 
 func (m *MockSurveyRepository) Create(ctx context.Context, survey *model.Survey) error {
@@ -122,4 +124,44 @@ func (m *MockSurveyRepository) List(ctx context.Context, skip, limit int64) ([]*
 			UpdatedAt: time.Now(),
 		},
 	}, 2, nil
+}
+
+func (m *MockSurveyRepository) CreateQuestionAssignment(ctx context.Context, assignment *model.SurveyQuestionAssignment) error {
+	if assignment == nil {
+		return errors.New("assignment cannot be nil")
+	}
+	if assignment.SurveyID.IsZero() {
+		return errors.New("survey ID cannot be zero")
+	}
+	if assignment.QuestionID.IsZero() {
+		return errors.New("question ID cannot be zero")
+	}
+	if m.CreateQuestionAssignmentFunc != nil {
+		return m.CreateQuestionAssignmentFunc(ctx, assignment)
+	}
+
+	assignment.ID = primitive.NewObjectID()
+	assignment.CreatedAt = time.Now()
+	assignment.UpdatedAt = time.Now()
+	return nil
+}
+
+func (m *MockSurveyRepository) GetQuestionAssignments(ctx context.Context, surveyID primitive.ObjectID) ([]*model.SurveyQuestionAssignment, error) {
+	if surveyID.IsZero() {
+		return nil, errors.New("survey ID cannot be zero")
+	}
+	if m.GetQuestionAssignmentsFunc != nil {
+		return m.GetQuestionAssignmentsFunc(ctx, surveyID)
+	}
+
+	return []*model.SurveyQuestionAssignment{
+		{
+			ID:         primitive.NewObjectID(),
+			SurveyID:   surveyID,
+			QuestionID: primitive.NewObjectID(),
+			Order:      1,
+			CreatedAt:  time.Now(),
+			UpdatedAt:  time.Now(),
+		},
+	}, nil
 }

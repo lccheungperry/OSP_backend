@@ -7,7 +7,7 @@ import (
 
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/question/model"
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/question/query"
-	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/question/repository"
+	"github.com/lccheungperry/OSP_backend/tests/domain/survey_platform/question"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -39,9 +39,9 @@ func TestGetQuestionHandler(t *testing.T) {
 				ID: "123",
 			},
 			getByIDFunc: func(ctx context.Context, id string) (*model.Question, error) {
-				return nil, repository.ErrQuestionNotFound
+				return nil, question.ErrQuestionNotFound
 			},
-			expectedError: repository.ErrQuestionNotFound,
+			expectedError: question.ErrQuestionNotFound,
 		},
 		{
 			name: "repository error",
@@ -57,9 +57,8 @@ func TestGetQuestionHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := &MockQuestionRepository{
-				GetByIDFunc: tt.getByIDFunc,
-			}
+			repo := question.NewMockQuestionRepository()
+			repo.GetByIDFunc = tt.getByIDFunc
 			handler := &query.GetQuestionHandler{
 				Repository: repo,
 			}
@@ -124,9 +123,8 @@ func TestListQuestionsHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := &MockQuestionRepository{
-				ListFunc: tt.listFunc,
-			}
+			repo := question.NewMockQuestionRepository()
+			repo.ListFunc = tt.listFunc
 			handler := &query.ListQuestionsHandler{
 				Repository: repo,
 			}

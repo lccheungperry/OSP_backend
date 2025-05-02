@@ -1,6 +1,8 @@
 package query
 
-import "github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/survey/model"
+import (
+	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/survey/model"
+)
 
 type GetSurveyQuery struct {
 	ID string `json:"id" validate:"required"`

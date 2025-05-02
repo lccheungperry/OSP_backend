@@ -2,13 +2,13 @@ package repository
 
 import (
 	"context"
-	"errors"
 
+	platform_error "github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/error"
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/survey/model"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-var ErrSurveyNotFound = errors.New("survey not found")
+var ErrSurveyNotFound = platform_error.ErrSurveyNotFound
 
 type SurveyRepository interface {
 	Create(ctx context.Context, survey *model.Survey) error
@@ -17,4 +17,6 @@ type SurveyRepository interface {
 	List(ctx context.Context, skip, limit int64) ([]*model.Survey, int64, error)
 	Update(ctx context.Context, survey *model.Survey) error
 	Delete(ctx context.Context, id primitive.ObjectID) error
+	GetQuestionAssignments(ctx context.Context, surveyID primitive.ObjectID) ([]*model.SurveyQuestionAssignment, error)
+	CreateQuestionAssignment(ctx context.Context, assignment *model.SurveyQuestionAssignment) error
 }

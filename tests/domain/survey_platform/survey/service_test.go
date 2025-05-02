@@ -52,9 +52,12 @@ func TestSurveyService(t *testing.T) {
 				}
 				svc := service.NewSurveyService(repo)
 
-				err := svc.HandleCommand(context.Background(), tt.cmd)
+				result, err := svc.HandleCommand(context.Background(), tt.cmd)
 				if (err != nil && tt.expectedError == nil) || (err == nil && tt.expectedError != nil) {
 					t.Errorf("HandleCommand() error = %v, expectedError %v", err, tt.expectedError)
+				}
+				if err == nil && result == nil {
+					t.Error("HandleCommand() result is nil")
 				}
 			})
 		}
@@ -162,8 +165,8 @@ func TestSurveyService(t *testing.T) {
 				}
 				if err == nil {
 					response := result.(struct {
-						Surveys []*model.Survey `json:"surveys"`
-						Total   int64           `json:"total"`
+						Surveys []*model.Survey
+						Total   int64
 					})
 					if len(response.Surveys) != 2 || response.Total != 2 {
 						t.Errorf("HandleQuery() got = %v items, total %v, want 2 items, total 2", len(response.Surveys), response.Total)
