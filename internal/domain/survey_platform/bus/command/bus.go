@@ -9,12 +9,12 @@ type Command interface {
 }
 
 type CommandHandler interface {
-	HandleCommand(ctx context.Context, cmd Command) error
+	HandleCommand(ctx context.Context, cmd Command) (interface{}, error)
 }
 
 type CommandBus interface {
 	RegisterHandler(commandName string, handler CommandHandler)
-	Dispatch(ctx context.Context, cmd Command) error
+	Dispatch(ctx context.Context, cmd Command) (interface{}, error)
 }
 
 type InMemoryCommandBus struct {
@@ -31,10 +31,10 @@ func (b *InMemoryCommandBus) RegisterHandler(commandName string, handler Command
 	b.handlers[commandName] = handler
 }
 
-func (b *InMemoryCommandBus) Dispatch(ctx context.Context, cmd Command) error {
+func (b *InMemoryCommandBus) Dispatch(ctx context.Context, cmd Command) (interface{}, error) {
 	handler, exists := b.handlers[cmd.CommandName()]
 	if !exists {
-		return nil
+		return nil, ErrCommandHandlerNotFound
 	}
 	return handler.HandleCommand(ctx, cmd)
 }

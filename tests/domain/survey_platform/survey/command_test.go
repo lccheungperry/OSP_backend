@@ -51,7 +51,7 @@ func TestCreateSurveyHandler(t *testing.T) {
 				Repository: repo,
 			}
 
-			err := handler.HandleCommand(context.Background(), tt.cmd)
+			_, err := handler.HandleCommand(context.Background(), tt.cmd)
 			if (err != nil && tt.expectedError == nil) || (err == nil && tt.expectedError != nil) {
 				t.Errorf("HandleCommand() error = %v, expectedError %v", err, tt.expectedError)
 			}
@@ -102,7 +102,7 @@ func TestUpdateSurveyHandler(t *testing.T) {
 				Repository: repo,
 			}
 
-			err := handler.HandleCommand(context.Background(), tt.cmd)
+			_, err := handler.HandleCommand(context.Background(), tt.cmd)
 			if (err != nil && tt.expectedError == nil) || (err == nil && tt.expectedError != nil) {
 				t.Errorf("HandleCommand() error = %v, expectedError %v", err, tt.expectedError)
 			}
@@ -148,7 +148,7 @@ func TestDeleteSurveyHandler(t *testing.T) {
 				Repository: repo,
 			}
 
-			err := handler.HandleCommand(context.Background(), tt.cmd)
+			_, err := handler.HandleCommand(context.Background(), tt.cmd)
 			if (err != nil && tt.expectedError == nil) || (err == nil && tt.expectedError != nil) {
 				t.Errorf("HandleCommand() error = %v, expectedError %v", err, tt.expectedError)
 			}

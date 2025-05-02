@@ -14,17 +14,17 @@ import (
 var ErrInvalidCommand = errors.New("invalid command")
 
 type CommandHandler interface {
-	HandleCommand(ctx context.Context, cmd interface{}) error
+	HandleCommand(ctx context.Context, cmd interface{}) (interface{}, error)
 }
 
 type CreateQuestionHandler struct {
 	Repository repository.QuestionRepository
 }
 
-func (h *CreateQuestionHandler) HandleCommand(ctx context.Context, cmd command.Command) error {
+func (h *CreateQuestionHandler) HandleCommand(ctx context.Context, cmd command.Command) (interface{}, error) {
 	createCmd, ok := cmd.(*CreateQuestionCommand)
 	if !ok {
-		return fmt.Errorf("invalid command type: %T", cmd)
+		return nil, fmt.Errorf("invalid command type: %T", cmd)
 	}
 
 	question := &model.Question{
@@ -33,22 +33,26 @@ func (h *CreateQuestionHandler) HandleCommand(ctx context.Context, cmd command.C
 		Specifications: createCmd.Specifications,
 	}
 
-	return h.Repository.Create(ctx, question)
+	if err := h.Repository.Create(ctx, question); err != nil {
+		return nil, err
+	}
+
+	return question, nil
 }
 
 type UpdateQuestionHandler struct {
 	Repository repository.QuestionRepository
 }
 
-func (h *UpdateQuestionHandler) HandleCommand(ctx context.Context, cmd command.Command) error {
+func (h *UpdateQuestionHandler) HandleCommand(ctx context.Context, cmd command.Command) (interface{}, error) {
 	updateCmd, ok := cmd.(*UpdateQuestionCommand)
 	if !ok {
-		return fmt.Errorf("invalid command type: %T", cmd)
+		return nil, fmt.Errorf("invalid command type: %T", cmd)
 	}
 
 	id, err := primitive.ObjectIDFromHex(updateCmd.ID)
 	if err != nil {
-		return fmt.Errorf("invalid question ID: %v", err)
+		return nil, fmt.Errorf("invalid question ID: %v", err)
 	}
 
 	question := &model.Question{
@@ -58,18 +62,26 @@ func (h *UpdateQuestionHandler) HandleCommand(ctx context.Context, cmd command.C
 		Specifications: updateCmd.Specifications,
 	}
 
-	return h.Repository.Update(ctx, updateCmd.ID, question)
+	if err := h.Repository.Update(ctx, updateCmd.ID, question); err != nil {
+		return nil, err
+	}
+
+	return question, nil
 }
 
 type DeleteQuestionHandler struct {
 	Repository repository.QuestionRepository
 }
 
-func (h *DeleteQuestionHandler) HandleCommand(ctx context.Context, cmd command.Command) error {
+func (h *DeleteQuestionHandler) HandleCommand(ctx context.Context, cmd command.Command) (interface{}, error) {
 	deleteCmd, ok := cmd.(*DeleteQuestionCommand)
 	if !ok {
-		return fmt.Errorf("invalid command type: %T", cmd)
+		return nil, fmt.Errorf("invalid command type: %T", cmd)
 	}
 
-	return h.Repository.Delete(ctx, deleteCmd.ID)
+	if err := h.Repository.Delete(ctx, deleteCmd.ID); err != nil {
+		return nil, err
+	}
+
+	return nil, nil
 }

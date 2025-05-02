@@ -10,6 +10,7 @@ import (
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/response/model"
 	resp_query "github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/response/query"
 	"github.com/lccheungperry/OSP_backend/internal/domain/survey_platform/response/repository"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type ResponseService struct {
@@ -20,26 +21,44 @@ func NewResponseService(repo repository.ResponseRepository) *ResponseService {
 	return &ResponseService{repo: repo}
 }
 
+func (s *ResponseService) SubmitResponse(ctx context.Context, cmd *resp_command.SubmitResponseCommand) (*model.Response, error) {
+	answers := make([]model.Answer, len(cmd.Answers))
+	for i, cmdAnswer := range cmd.Answers {
+		answers[i] = model.Answer{
+			QuestionID: cmdAnswer.QuestionID,
+			Value:      cmdAnswer.Value,
+		}
+	}
+
+	response := &model.Response{
+		SurveyID:  cmd.SurveyID,
+		Answers:   answers,
+		CreatedAt: time.Now(),
+	}
+
+	err := s.repo.Create(ctx, response)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func (s *ResponseService) GetResponses(ctx context.Context, surveyID primitive.ObjectID, page, pageSize int64) ([]*model.Response, int64, error) {
+	skip := (page - 1) * pageSize
+	return s.repo.FindBySurveyID(ctx, surveyID, skip, pageSize)
+}
+
+func (s *ResponseService) DeleteResponse(ctx context.Context, cmd *resp_command.DeleteResponseCommand) error {
+	return s.repo.Delete(ctx, cmd.ID)
+}
+
 func (s *ResponseService) HandleCommand(ctx context.Context, cmd bus_command.Command) error {
 	switch c := cmd.(type) {
 	case *resp_command.SubmitResponseCommand:
-		answers := make([]model.Answer, len(c.Answers))
-		for i, cmdAnswer := range c.Answers {
-			answers[i] = model.Answer{
-				QuestionID: cmdAnswer.QuestionID,
-				Value:      cmdAnswer.Value,
-			}
-		}
-
-		response := &model.Response{
-			SurveyID:  c.SurveyID,
-			Answers:   answers,
-			CreatedAt: time.Now(),
-		}
-
-		return s.repo.Create(ctx, response)
+		_, err := s.SubmitResponse(ctx, c)
+		return err
 	case *resp_command.DeleteResponseCommand:
-		return s.repo.Delete(ctx, c.ID)
+		return s.DeleteResponse(ctx, c)
 	default:
 		return nil
 	}
@@ -53,8 +72,8 @@ func (s *ResponseService) HandleQuery(ctx context.Context, q bus_query.Query) (i
 			return nil, err
 		}
 		return struct {
-			Responses []*model.Response `json:"responses"`
-			Total     int64             `json:"total"`
+			Responses []*model.Response
+			Total     int64
 		}{
 			Responses: responses,
 			Total:     total,
