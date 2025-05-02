@@ -32,9 +32,8 @@ func NewSurveyService(repo repository.SurveyRepository) SurveyServiceInterface {
 	return service
 }
 
-func (s *SurveyService) HandleCommand(ctx context.Context, cmd command.Command) error {
-	_, err := s.commandBus.Dispatch(ctx, cmd)
-	return err
+func (s *SurveyService) HandleCommand(ctx context.Context, cmd command.Command) (interface{}, error) {
+	return s.commandBus.Dispatch(ctx, cmd)
 }
 
 func (s *SurveyService) HandleQuery(ctx context.Context, query query.Query) (interface{}, error) {
